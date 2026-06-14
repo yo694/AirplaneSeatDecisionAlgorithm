@@ -79,45 +79,66 @@ public class AirplaneSeatAssignment {
         return "Valid seat assigned based on availability and rules.";
     }
 
+    public static int calculateSeatScore(Passenger passenger, Seat seat) {
+    int score = 0;
+
+    if (passenger.ticketClass.equals(seat.seatClass)) {
+        score += 500;
+    }
+
+    if (passenger.preference != null &&
+        passenger.preference.equals(seat.type)) {
+        score += 200;
+    }
+
+    return score;
+}
+
     public static List<Assignment> assignSeats(List<Passenger> passengers, List<Seat> seats) {
-        List<Assignment> finalAssignments = new ArrayList<>();
-        Set<String> usedSeats = new HashSet<>();
+    List<Assignment> finalAssignments = new ArrayList<>();
+    Set<String> usedSeats = new HashSet<>();
 
-        Map<String, List<Passenger>> groups = groupPassengers(passengers);
+    Map<String, List<Passenger>> groups = groupPassengers(passengers);
 
-        for (String groupId : groups.keySet()) {
-            List<Passenger> group = groups.get(groupId);
+    for (String groupId : groups.keySet()) {
+        List<Passenger> group = groups.get(groupId);
 
-            List<Assignment> currentAssignments = new ArrayList<>();
+        List<Assignment> currentAssignments = new ArrayList<>();
 
-            for (Passenger passenger : group) {
-                Seat selectedSeat = null;
+        for (Passenger passenger : group) {
+            Seat selectedSeat = null;
+            int bestScore = -1;
 
-                for (Seat seat : seats) {
-                    if (!usedSeats.contains(seat.seatNo) &&
-                        isSeatValid(passenger, seat)) {
+            for (Seat seat : seats) {
+                if (!usedSeats.contains(seat.seatNo) &&
+                    isSeatValid(passenger, seat)) {
+
+                    int currentScore = calculateSeatScore(passenger, seat);
+
+                    if (currentScore > bestScore) {
+                        bestScore = currentScore;
                         selectedSeat = seat;
-                        break;
                     }
                 }
-
-                if (selectedSeat == null) {
-                    System.out.println("No valid seat found for passenger " + passenger.id);
-                    return finalAssignments;
-                }
-
-                usedSeats.add(selectedSeat.seatNo);
-
-                currentAssignments.add(
-                    new Assignment(passenger, selectedSeat, getReason(passenger, selectedSeat))
-                );
             }
 
-            finalAssignments.addAll(currentAssignments);
+            if (selectedSeat == null) {
+                System.out.println("No valid seat found for passenger " + passenger.id);
+                return finalAssignments;
+            }
+
+            usedSeats.add(selectedSeat.seatNo);
+
+            currentAssignments.add(
+                new Assignment(passenger, selectedSeat, getReason(passenger, selectedSeat))
+            );
         }
 
-        return finalAssignments;
+        finalAssignments.addAll(currentAssignments);
     }
+
+    return finalAssignments;
+}
 
     public static void main(String[] args) {
         List<Seat> seats = new ArrayList<>();
