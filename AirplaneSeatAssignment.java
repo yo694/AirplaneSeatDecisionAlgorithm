@@ -94,6 +94,68 @@ public class AirplaneSeatAssignment {
     return score;
 }
 
+public static List<Assignment> assignGroupInSameRow(
+        List<Passenger> group,
+        List<Seat> seats,
+        Set<String> usedSeats) {
+
+    Map<Integer, List<Seat>> seatsByRow = new HashMap<>();
+
+    for (Seat seat : seats) {
+        if (!usedSeats.contains(seat.seatNo)) {
+            if (!seatsByRow.containsKey(seat.row)) {
+                seatsByRow.put(seat.row, new ArrayList<>());
+            }
+
+            seatsByRow.get(seat.row).add(seat);
+        }
+    }
+
+    for (Integer row : seatsByRow.keySet()) {
+        List<Seat> rowSeats = seatsByRow.get(row);
+
+        if (rowSeats.size() < group.size()) {
+            continue;
+        }
+
+        List<Assignment> rowAssignments = new ArrayList<>();
+        Set<String> tempUsedSeats = new HashSet<>();
+
+        for (Passenger passenger : group) {
+            Seat bestSeat = null;
+            int bestScore = -1;
+
+            for (Seat seat : rowSeats) {
+                if (!tempUsedSeats.contains(seat.seatNo) &&
+                    isSeatValid(passenger, seat)) {
+
+                    int currentScore = calculateSeatScore(passenger, seat);
+
+                    if (currentScore > bestScore) {
+                        bestScore = currentScore;
+                        bestSeat = seat;
+                    }
+                }
+            }
+
+            if (bestSeat == null) {
+                rowAssignments.clear();
+                break;
+            }
+
+            tempUsedSeats.add(bestSeat.seatNo);
+            rowAssignments.add(
+                new Assignment(passenger, bestSeat, getReason(passenger, bestSeat))
+            );
+        }
+
+        if (rowAssignments.size() == group.size()) {
+            return rowAssignments;
+        }
+    }
+
+    return null;
+}
     public static List<Assignment> assignSeats(List<Passenger> passengers, List<Seat> seats) {
     List<Assignment> finalAssignments = new ArrayList<>();
     Set<String> usedSeats = new HashSet<>();
@@ -103,35 +165,43 @@ public class AirplaneSeatAssignment {
     for (String groupId : groups.keySet()) {
         List<Passenger> group = groups.get(groupId);
 
-        List<Assignment> currentAssignments = new ArrayList<>();
+        List<Assignment> currentAssignments = assignGroupInSameRow(group, seats, usedSeats);
 
-        for (Passenger passenger : group) {
-            Seat selectedSeat = null;
-            int bestScore = -1;
+        if (currentAssignments == null) {
+            currentAssignments = new ArrayList<>();
 
-            for (Seat seat : seats) {
-                if (!usedSeats.contains(seat.seatNo) &&
-                    isSeatValid(passenger, seat)) {
+            for (Passenger passenger : group) {
+                Seat selectedSeat = null;
+                int bestScore = -1;
 
-                    int currentScore = calculateSeatScore(passenger, seat);
+                for (Seat seat : seats) {
+                    if (!usedSeats.contains(seat.seatNo) &&
+                        isSeatValid(passenger, seat)) {
 
-                    if (currentScore > bestScore) {
-                        bestScore = currentScore;
-                        selectedSeat = seat;
+                        int currentScore = calculateSeatScore(passenger, seat);
+
+                        if (currentScore > bestScore) {
+                            bestScore = currentScore;
+                            selectedSeat = seat;
+                        }
                     }
                 }
+
+                if (selectedSeat == null) {
+                    System.out.println("No valid seat found for passenger " + passenger.id);
+                    return finalAssignments;
+                }
+
+                usedSeats.add(selectedSeat.seatNo);
+
+                currentAssignments.add(
+                    new Assignment(passenger, selectedSeat, getReason(passenger, selectedSeat))
+                );
             }
-
-            if (selectedSeat == null) {
-                System.out.println("No valid seat found for passenger " + passenger.id);
-                return finalAssignments;
+        } else {
+            for (Assignment assignment : currentAssignments) {
+                usedSeats.add(assignment.seat.seatNo);
             }
-
-            usedSeats.add(selectedSeat.seatNo);
-
-            currentAssignments.add(
-                new Assignment(passenger, selectedSeat, getReason(passenger, selectedSeat))
-            );
         }
 
         finalAssignments.addAll(currentAssignments);
