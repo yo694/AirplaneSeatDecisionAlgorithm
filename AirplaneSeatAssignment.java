@@ -2,56 +2,6 @@ import java.util.*;
 
 public class AirplaneSeatAssignment {
 
-    static class Seat {
-        String seatNo;
-        int row;
-        String type;
-        String seatClass;
-        boolean available;
-        boolean exitRow;
-        boolean infantAllowed;
-
-        Seat(String seatNo, int row, String type, String seatClass,
-             boolean available, boolean exitRow, boolean infantAllowed) {
-            this.seatNo = seatNo;
-            this.row = row;
-            this.type = type;
-            this.seatClass = seatClass;
-            this.available = available;
-            this.exitRow = exitRow;
-            this.infantAllowed = infantAllowed;
-        }
-    }
-
-    static class Passenger {
-        String id;
-        String ageCategory;
-        String ticketClass;
-        String preference;
-        String groupId;
-
-        Passenger(String id, String ageCategory, String ticketClass,
-                  String preference, String groupId) {
-            this.id = id;
-            this.ageCategory = ageCategory;
-            this.ticketClass = ticketClass;
-            this.preference = preference;
-            this.groupId = groupId;
-        }
-    }
-
-    static class Assignment {
-        Passenger passenger;
-        Seat seat;
-        String reason;
-
-        Assignment(Passenger passenger, Seat seat, String reason) {
-            this.passenger = passenger;
-            this.seat = seat;
-            this.reason = reason;
-        }
-    }
-
     public static boolean isSeatValid(Passenger passenger, Seat seat) {
         if (!seat.available) {
             return false;
@@ -93,6 +43,7 @@ public class AirplaneSeatAssignment {
         int score = 0;
 
         Set<Integer> rows = new HashSet<>();
+
         for (Assignment assignment : assignments) {
             rows.add(assignment.seat.row);
         }
@@ -156,6 +107,7 @@ public class AirplaneSeatAssignment {
                 }
 
                 usedSeats.add(selectedSeat.seatNo);
+
                 currentAssignments.add(
                     new Assignment(passenger, selectedSeat, getReason(passenger, selectedSeat))
                 );
