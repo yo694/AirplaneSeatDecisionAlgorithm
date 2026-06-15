@@ -50,37 +50,68 @@ public class AirplaneSeatAssignment {
         return groups;
     }
 
-    public static int calculateScore(List<Assignment> assignments) {
+    public static void sortGroupByPriority(List<Passenger> group) {
+        group.sort((p1, p2) -> {
+            if (p1.loyaltyPriority != p2.loyaltyPriority) {
+                return Integer.compare(p2.loyaltyPriority, p1.loyaltyPriority);
+            }
+
+            return Integer.compare(p1.checkInOrder, p2.checkInOrder);
+        });
+    }
+
+    public static int calculateSeatScore(Passenger passenger, Seat seat) {
         int score = 0;
 
+        if (passenger.ticketClass.equals(seat.seatClass)) {
+            score += 500;
+        }
+
+        if (passenger.preference != null) {
+            if (passenger.preference.equals(seat.type)) {
+                score += 200;
+            }
+
+            if (passenger.preference.equals("front-row") && seat.frontRow) {
+                score += 200;
+            }
+
+            if (passenger.preference.equals("quiet-zone") && seat.quietZone) {
+                score += 200;
+            }
+
+            if (passenger.preference.equals("extra-legroom") && seat.extraLegroom) {
+                score += 200;
+            }
+        }
+
+        if (passenger.paidSeat != null &&
+            passenger.paidSeat.equals(seat.seatNo)) {
+            score += 300;
+        }
+
+        score += passenger.loyaltyPriority * 50;
+
+        if (passenger.checkInOrder > 0) {
+            score += Math.max(0, 100 - passenger.checkInOrder * 10);
+        }
+
+        return score;
+    }
+
+    public static int calculateScore(List<Assignment> assignments) {
+        int score = 0;
         Set<Integer> rows = new HashSet<>();
 
         for (Assignment assignment : assignments) {
             rows.add(assignment.seat.row);
+            score += calculateSeatScore(assignment.passenger, assignment.seat);
         }
 
         if (rows.size() == 1) {
             score += 400;
         } else {
             score -= 400;
-        }
-
-        for (Assignment assignment : assignments) {
-            Passenger passenger = assignment.passenger;
-            Seat seat = assignment.seat;
-
-            if (passenger.preference != null &&
-                passenger.preference.equals(seat.type)) {
-                score += 200;
-            } else if (passenger.preference != null &&
-                       !passenger.preference.equals("none")) {
-                score -= 50;
-            }
-
-            if (passenger.paidSeat != null &&
-                passenger.paidSeat.equals(seat.seatNo)) {
-                score += 300;
-            }
         }
 
         return score;
@@ -97,27 +128,26 @@ public class AirplaneSeatAssignment {
             return passenger.preference + " preference matched.";
         }
 
-        return "Valid seat assigned based on availability and rules.";
-    }
-
-    public static int calculateSeatScore(Passenger passenger, Seat seat) {
-        int score = 0;
-
-        if (passenger.ticketClass.equals(seat.seatClass)) {
-            score += 500;
+        if (passenger.preference != null &&
+            passenger.preference.equals("front-row") && seat.frontRow) {
+            return "Front-row preference matched.";
         }
 
         if (passenger.preference != null &&
-            passenger.preference.equals(seat.type)) {
-            score += 200;
+            passenger.preference.equals("quiet-zone") && seat.quietZone) {
+            return "Quiet-zone preference matched.";
         }
 
-        if (passenger.paidSeat != null &&
-            passenger.paidSeat.equals(seat.seatNo)) {
-            score += 300;
+        if (passenger.preference != null &&
+            passenger.preference.equals("extra-legroom") && seat.extraLegroom) {
+            return "Extra-legroom preference matched.";
         }
 
-        return score;
+        if (passenger.loyaltyPriority > 0) {
+            return "Valid seat assigned using loyalty and check-in priority.";
+        }
+
+        return "Valid seat assigned based on availability and rules.";
     }
 
     public static List<Assignment> assignGroupInSameRow(
@@ -136,6 +166,9 @@ public class AirplaneSeatAssignment {
                 seatsByRow.get(seat.row).add(seat);
             }
         }
+
+        List<Assignment> bestRowAssignments = null;
+        int bestRowScore = -1;
 
         for (Integer row : seatsByRow.keySet()) {
             List<Seat> rowSeats = seatsByRow.get(row);
@@ -177,11 +210,16 @@ public class AirplaneSeatAssignment {
             }
 
             if (rowAssignments.size() == group.size()) {
-                return rowAssignments;
+                int rowScore = calculateScore(rowAssignments);
+
+                if (rowScore > bestRowScore) {
+                    bestRowScore = rowScore;
+                    bestRowAssignments = rowAssignments;
+                }
             }
         }
 
-        return null;
+        return bestRowAssignments;
     }
 
     public static List<Assignment> assignSeats(List<Passenger> passengers, List<Seat> seats) {
@@ -192,6 +230,7 @@ public class AirplaneSeatAssignment {
 
         for (String groupId : groups.keySet()) {
             List<Passenger> group = groups.get(groupId);
+            sortGroupByPriority(group);
 
             List<Assignment> currentAssignments = assignGroupInSameRow(group, seats, usedSeats);
 
@@ -241,18 +280,22 @@ public class AirplaneSeatAssignment {
     public static void main(String[] args) {
         List<Seat> seats = new ArrayList<>();
 
-        seats.add(new Seat("10A", 10, "window", "economy", true, false, true, "available", true));
-        seats.add(new Seat("10B", 10, "middle", "economy", true, false, true, "available", false));
-        seats.add(new Seat("10C", 10, "aisle", "economy", true, false, true, "available", false));
-        seats.add(new Seat("11A", 11, "window", "economy", true, false, true, "blocked", false));
-        seats.add(new Seat("11B", 11, "middle", "economy", true, false, true, "available", false));
-        seats.add(new Seat("11C", 11, "aisle", "economy", true, false, true, "available", false));
+        seats.add(new Seat("10A", 10, "window", "economy", true, false, true, "available", true, true, false, true));
+        seats.add(new Seat("10B", 10, "middle", "economy", true, false, true, "available", false, true, false, false));
+        seats.add(new Seat("10C", 10, "aisle", "economy", true, false, true, "available", false, true, false, false));
+        seats.add(new Seat("11A", 11, "window", "economy", true, false, true, "blocked", false, false, true, false));
+        seats.add(new Seat("11B", 11, "middle", "economy", true, false, true, "available", false, false, true, false));
+        seats.add(new Seat("11C", 11, "aisle", "economy", true, false, true, "available", false, false, true, false));
+        seats.add(new Seat("12A", 12, "window", "economy", true, false, true, "available", false, false, false, true));
+        seats.add(new Seat("12B", 12, "middle", "economy", true, false, true, "available", false, false, false, false));
+        seats.add(new Seat("12C", 12, "aisle", "economy", true, false, true, "available", false, false, false, false));
 
         List<Passenger> passengers = new ArrayList<>();
 
-        passengers.add(new Passenger("P1", "adult", "economy", "window", "G1", "10A"));
-        passengers.add(new Passenger("P2", "adult", "economy", "aisle", "G1", null));
-        passengers.add(new Passenger("P3", "child", "economy", "none", "G1", null));
+        passengers.add(new Passenger("P1", "adult", "economy", "window", "G1", "10A", 3, 2));
+        passengers.add(new Passenger("P2", "adult", "economy", "aisle", "G1", null, 2, 1));
+        passengers.add(new Passenger("P3", "child", "economy", "none", "G1", null, 0, 3));
+        passengers.add(new Passenger("P4", "adult", "economy", "extra-legroom", "G2", null, 5, 1));
 
         List<Assignment> result = assignSeats(passengers, seats);
 
